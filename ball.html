@@ -1,0 +1,217 @@
+<html>
+<head>
+	<script type="text/javascript" src="https://getfirebug.com/firebug-lite.js"></script>
+</head>
+
+<body onload="onload();">
+
+    <div id="main">
+			<center>
+			<canvas id="canvas" width="100" height="100"></canvas>
+			</center>
+    </div>
+    
+  <script type="text/javascript">
+  function onload() {
+		document.getElementById('canvas').focus();
+  
+		var canvas = document.getElementById('canvas');
+		var ctx = canvas.getContext('2d');
+		
+		var map = [];
+		map[0] = [];
+		map[1] = [
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+		];
+		map[2] = [
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+		];
+	//[1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6],
+		var cur_map = 2;
+		
+		var tile_h = 32, tile_w = 32;
+		var tiles_w = 16, tiles_h = 16;
+		var game_h = (tile_h * tiles_h);
+		var game_w = (tile_w * tiles_w);
+		canvas.setAttribute('width', game_w); // adjust <canvas>
+		canvas.setAttribute('height', game_h);
+		
+		var hero = {
+		'show':true,
+		'x_sp':0, 'y_sp':0,
+		'x':0, 'y':0,
+		'max_x_sp':10, 'max_y_sp':10,
+		'x_acc':0.5, 'y_acc':0.5,
+		'map_x':0, 'map_y':0,
+		'radius':8,
+		'r':255, 'g':51, 'b':0, 'a':1,
+		'friction':0.95, 'gravity':0.15, 'thrust':0.75
+		};
+		hero.x = (game_w / 2); // center
+		hero.y = (game_h / 2);
+		hero.map_x = hero.x;
+		hero.map_y = hero.y;
+		
+		var left = false; right = false; up = false; down = false;
+		
+		var key;
+		document.onkeydown = function(e) {
+			if (e === null) {
+				key = window.e.keyCode;
+			} else {
+				key = e.keyCode;
+			}
+			if (key == 37) {
+				left = true;
+			}
+			if (key == 38) {
+				up = true;
+			}
+			if (key == 39) {
+				right = true;
+			}
+			if (key == 40) {
+				down = true;
+			}
+		};
+		document.onkeyup = function(e) {
+			if (e === null) {
+				key = window.e.keyCode;
+			} else {
+				key = e.keyCode;
+			}
+			if (key == 37) {
+				left = false;
+			}
+			if (key == 38) {
+				up = false;
+			}
+			if (key == 39) {
+				right = false;
+			}
+			if (key == 40) {
+				down = false;
+			}
+		};
+		
+		var g;
+		function move_draw_hero() {
+			if (left && hero.x_sp > (hero.max_x_sp - (2 * hero.max_x_sp))) {
+				hero.x_sp -= hero.x_acc;
+			}
+			if (right && hero.x_sp < hero.max_x_sp) {
+				hero.x_sp += hero.x_acc;
+			}
+			if (up && hero.y_sp > (hero.max_y_sp - (2 * hero.max_y_sp))) {
+				hero.y_sp -= (hero.y_acc * hero.thrust);
+			}
+			if (down /*&& hero.y_sp < hero.max_y_sp*/) {
+				hero.y_sp += (hero.y_acc * hero.thrust);
+			}
+			hero.x += hero.x_sp;
+			hero.y += hero.y_sp;
+			hero.x_sp *= hero.friction;
+			hero.y_sp += hero.gravity;
+			if ((hero.x - hero.radius) < 0 || (hero.x + hero.radius) > game_w || (hero.y - hero.radius) < 0 || (hero.y + hero.radius) > game_h) {
+				hero.x = hero.map_x;
+				hero.y = hero.map_y;
+				hero.x_sp = 0;
+				hero.y_sp = 0;
+				// hero died for leaving game area
+			}
+
+			for (g = 0; g < 10; ++g) {
+				y = Math.floor((Math.sin(((36 * g) / 180) * Math.PI) * hero.radius) + hero.y);
+				x = Math.floor((Math.cos(((36 * g) / 180) * Math.PI) * hero.radius) + hero.x);
+				//ctx.fillStyle = 'rgb(0, 0, 0)';
+				//ctx.fillRect(x, y, 2, 2);
+				if (!w_able[(Math.floor(x / tile_w))][(Math.floor(y / tile_h))]) { // hero died for touching brick
+					hero.x = hero.map_x;
+					hero.y = hero.map_y;
+					hero.x_sp = 0;
+					hero.y_sp = 0;
+				}
+			}
+			
+			if (hero.show) {
+				ctx.beginPath();
+				ctx.fillStyle = 'rgba('+hero.r+', '+hero.g+', '+hero.b+', '+hero.a+')';
+				ctx.arc(hero.x, hero.y, hero.radius, 0, (Math.PI * 2), true);
+				ctx.closePath();
+				ctx.fill();
+			}
+		}
+		
+		var x, y, tile;
+		var w_able = [];
+		function build_map() {
+			for (y = 0; y < tiles_h; ++y) {
+				for (x = 0; x < tiles_w; ++x) {
+					if (y == 0) {
+					 w_able[x] = [];
+					}
+					tile = map[cur_map][y][x];
+					if (tile == 1) {
+						ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+						ctx.fillRect((x * tile_w), (y * tile_h), tile_w, tile_h);
+					}
+					if (tile == 0) {
+						w_able[x][y] = true;
+						if (x > 0 && map[cur_map][y][(x - 1)] == 1) {
+							ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+							ctx.fillRect(((x * tile_w) - 1), (y * tile_h), 0.5, tile_h);
+						}
+						if (y > 0 && map[cur_map][(y - 1)][x] == 1) {
+							ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+							ctx.fillRect((x * tile_w), ((y * tile_h) - 1), tile_w, 0.5);
+						}
+					}
+				}
+			}
+		}
+		
+		function game_loop() {
+			ctx.clearRect(0, 0, game_w, game_h);
+			ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+			ctx.fillRect(0, 0, game_w, game_h);
+			build_map();
+			move_draw_hero();
+			gloop = setTimeout(game_loop, (1000 / 20));
+		}
+		
+		game_loop();
+	}
+  </script>
+  
+</body>
+</html>

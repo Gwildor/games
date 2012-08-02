@@ -1,0 +1,817 @@
+<html>
+<head>
+  
+	<script type="text/javascript" src="https://getfirebug.com/firebug-lite.js"></script>
+
+</head>
+
+<body onload="onload();">
+
+    <div id="main">
+			<center>
+			<canvas id="canvas" width="256" height="192"></canvas>
+			</center>
+    </div>
+    
+  <script type="text/javascript">
+  function onload() {
+		document.getElementById('canvas').focus();
+  
+		var canvas = document.getElementById('canvas');
+		var ctx = canvas.getContext('2d');
+		
+		var playing = false;
+		var gameover = false;
+		var gameend = false;
+		var shooting = false;
+		
+		var ts = Math.round(new Date().getTime() / 100);
+		var ts2, tempscore;
+		var score = 0;
+		
+		var tileH = 32;
+		var tileW = 32;
+		var cols = 8;
+		var rows = 6;
+		var gameH = (rows * tileH);
+		var gameW = (cols * tileW);
+		
+		var maps = [
+		
+		[
+		[1, 1, 1, 1, 1, 1, 1, 1], 
+		[1, 0, 0, 0, 0, 0, 0, 1], 
+		[1, 0, 1, 0, 0, 0, 0, 1], 
+		[1, 0, 0, 0, 0, 1, 0, 1], 
+		[1, 0, 0, 0, 0, 0, 0, 2], 
+		[1, 1, 1, 1, 1, 1, 1, 1]
+		],
+		
+		[
+		[1, 1, 1, 1, 1, 1, 4, 1], 
+		[1, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 1, 1, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 1, 0, 1],
+		[3, 0, 0, 0, 0, 1, 0, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1]
+		],
+		
+		[
+		[1, 1, 1, 1, 1, 1, 1, 1], 
+		[1, 0, 1, 1, 0, 0, 0, 1],
+		[6, 0, 0, 0, 0, 1, 0, 1],
+		[1, 0, 1, 0, 1, 1, 1, 1],
+		[1, 0, 1, 0, 0, 0, 0, 1],
+		[1, 1, 1, 1, 1, 1, 5, 1]
+		],
+		
+		[
+		[1, 1, 1, 1, 1, 1, 1, 1], 
+		[1, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 1, 1, 0, 0, 7],
+		[1, 0, 0, 1, 1, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1]
+		]
+		
+		];
+
+		var doorsa = []; // start opacity for doors, keys same as id in the maps
+		doorsa[2] = 1;
+		doorsa[3] = 0.5;
+		doorsa[4] = 1;
+		doorsa[5] = 0.5;
+		doorsa[6] = 1;
+		doorsa[7] = 0.5;
+		var oridoorsa = doorsa.slice();
+		var doorso = [];
+		doorso[2] = false;
+		doorso[3] = true;
+		doorso[4] = false;
+		doorso[5] = true;
+		doorso[6] = false;
+		doorso[7] = true;
+		var oridoorso = doorso.slice();
+		
+		var enemies  = [1, 2, 3, 1]; // just the amount
+		var orienemies = enemies.slice();
+		var enemiest = [
+		[[1, 6, 3, 2, 1, 4, 20, 1, 0]],
+		[[1, 4, 1, 1, 1, 3, 22, 1, 0], [1, 6, 3, 2, 1, 5, 18, 1, 0]],
+		[[1, 3, 4, 1, 1, 7, 14, 1, 0], [1, 5, 1, 4, 1, 4, 20, 1, 1], [3, 1, 1, 2, 1, 5, 18, 3, 0]],
+		[[5, 1, 1, 3, 1, 5, 12, 5, 0]]
+		]; 
+		// level => single enmy => lives, start X, start Y (tiles), type of movement (1 = x, 2 = y or 3 for search), startopacity (always 1), speed, size, original lives (should be same as 1st), smart movement (0 or 1)
+		var size;
+		
+		var orienemiest = [];
+		var a = enemies.length;
+		var i, j, b, z, x, y;
+		for (i = 0; i < a; ++i) {
+			orienemiest[i] = [];
+			for (j = 0; j < enemies[i]; ++j) {
+				factor = ((tileW - enemiest[i][j][6]) / 2);
+				// place him in the center of the tile
+				enemiest[i][j][1] = ((tileW * enemiest[i][j][1]) + factor);
+				enemiest[i][j][2] = ((tileH * enemiest[i][j][2]) + factor);
+				orienemiest[i][j] = enemiest[i][j].slice();
+			}
+		}
+		// change tiles in cords
+		
+		var curmap = 0; // 1st level
+		
+		var walkable = [true, false, false, false, false, false, false, false];
+		//which numbers(arraykeys) of the above map are walkable?
+		var oriwalkable = walkable.slice();
+		var wable = [];
+		
+		var hero = [];
+		hero.h = 24;
+		hero.w = 24;
+		hero.x = ((2 * tileW) + ((tileW - hero.w) / 2)); // start cors
+		hero.y = ((1 * tileH) + ((tileH - hero.h) / 2));
+		hero.sp = 6; // movement in px per frame
+		
+		var up, down, right, left;
+		var up2, down2, right2, left2;
+		right2 = true;
+		var key;
+		var downY, upY, rightX, leftX;
+		
+		var shootdir, shootx, shooty;
+		
+		function buildmap () {
+			for (y = 0; y < rows; ++y) {
+				for (x = 0; x < cols; ++x) {
+					if (y == 0) {
+					 wable[x] = [];
+					}
+					if (maps[curmap][y][x] == 1) {
+						ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+						ctx.fillRect((x * tileW), (y * tileH), tileW, tileH);
+					} else if (maps[curmap][y][x] >= 2) { // doors
+						if (enemies[curmap] == 0) { // player can pass on
+							if (doorsa[maps[curmap][y][x]] > 0.500) {
+								doorsa[maps[curmap][y][x]] -= 0.00625; // nice animation
+							}
+							doorso[maps[curmap][y][x]] = true;
+						}
+						ctx.fillStyle = 'rgba(0, 0, 0, '+doorsa[maps[curmap][y][x]]+')';
+						ctx.fillRect((x * tileW), (y * tileH), tileW, tileH);
+					} //elseif {
+					//} etc etc
+					else {
+						//context.fillStyle = 'rgba(0, 255, 0, 0.2)';
+						//context.fillRect((j * tileW), (i * tileH), tileW, tileH);
+					}
+					wable[x][y] = walkable[maps[curmap][y][x]];
+				}
+			}
+		}
+		
+		function drawhero() {
+			ctx.fillStyle = 'rgba(255, 0, 0, 1)';
+			ctx.fillRect(hero.x, hero.y, hero.w, hero.h);
+			
+			if (shooting) {
+				ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
+			} else {
+				ctx.fillStyle = 'rgba(0, 0, 255, 1)';
+			}
+			if ((left2 && up) || (left && up2)) {
+				ctx.fillRect(hero.x, hero.y, 2, 2);
+			} else if ((right2 && up) || (right && up2)) {
+				ctx.fillRect(((hero.x + hero.w) - 2), hero.y, 2, 2);
+			} else if ((left2 && down) || (left && down2)) {
+				ctx.fillRect(hero.x, ((hero.y + hero.h) - 2), 2, 2);
+			} else if ((right2 && down) || (right && down2)) {
+				ctx.fillRect(((hero.x + hero.w) - 2), ((hero.y + hero.h) - 2), 2, 2);
+			} else if (left2) {
+				ctx.fillRect(hero.x, ((hero.y + (hero.h / 2)) - 1), 2, 2); // -1 is center of the 2x2 dot
+			} else if (right2) {
+				ctx.fillRect((hero.x + (hero.w - 2)), ((hero.y + (hero.h / 2)) - 1), 2, 2);
+			} else if (down2) {
+				ctx.fillRect((hero.x + ((hero.w / 2) - 1)), ((hero.y + hero.h) - 2), 2, 2);
+			} else if (up2) {
+				ctx.fillRect((hero.x + ((hero.w / 2) - 1)), hero.y, 2, 2);
+			}
+			// let hero face the movement direction
+		}
+		
+		window.addEventListener('keydown', function(e) {
+			if (e == null) {
+				key = window.event.keyCode;
+			} else {
+				key = e.keyCode;
+			}
+			if (key == 37) { //left
+				left = left2 = true;
+				right2 = up2 = down2 = false;
+			}
+			if (key == 38) { //up
+				up = up2 = true;
+				left2 = down2 = right2 = false;
+			}
+			if (key == 39) { //right
+				right = right2 = true;
+				left2 = up2 = down2 = false;
+			}
+			if (key == 40) { //down
+				down = down2 = true;
+				left2 = up2 = right2 = false;
+			}
+			if (key == 32 && playing) {
+				//if (!down && !up && !right && !left) {
+				if (!shooting) {
+					shooting = true;
+					if (left2) {
+						shootdir = 'l';
+						shootx = (hero.x - 2);
+						shooty = ((hero.y + (hero.h / 2)) - 1);
+					} else if (right2) {
+						shootdir = 'r';
+						shootx = (hero.x + hero.w);
+						shooty = ((hero.y + (hero.h / 2)) - 1);
+					} else if (down2) {
+						shootdir = 'd';
+						shootx = (hero.x + ((hero.w / 2) - 1));
+						shooty = (hero.y + hero.h);
+					} else if (up2) {
+						shootdir = 'u';
+						shootx = (hero.x + ((hero.w / 2) - 1));
+						shooty = (hero.y - 2);
+					}
+					drawbullet();
+				}
+			} else if (key == 32 && gameover) {
+				restart();
+			} else if (key == 32 && gameend) {
+				restart();
+			} else if (key == 32 && !playing) {
+				playing = true;
+				ts = Math.round(new Date().getTime() / 100);
+				gameloop();
+			}
+			// note which keys are pressed
+			// the -2 are used to remember last position
+		}, true);
+		
+		window.addEventListener('keyup', function(e) {
+			if (e == null) {
+				key = window.event.keyCode;
+			} else {
+				key = e.keyCode;
+			}
+			if (key == 37) { //left
+				left = false;
+			}
+			if (key == 38) { //up
+				up = false;
+			}
+			if (key == 39) { //right
+				right = false;
+			}
+			if (key == 40) { //down
+				down = false;
+			}
+			// note which keys aren't pressed anymore
+		}, true);
+		
+		function gettiles(x, y, w, h) {
+			downY  = Math.floor((y+h-1)/tileH);
+  		upY    = Math.floor(y/tileH);
+  		leftX  = Math.floor(x/tileW);
+  		rightX = Math.floor((x+w-1)/tileW);
+  		/*console.log(leftX+'x'+downY);
+  		console.log(leftX+'x'+upY);
+  		console.log(rightX+'x'+downY);
+  		console.log(rightX+'x'+upY);*/
+  		// check which tiles object would land on
+		}
+		
+		function debuggettiles() {
+			if (leftX >= 0 && downY >= 0 && rightX >= 0 && upY >= 0) {
+				ctx.fillStyle = 'rgb(0, 0, 255)';
+				ctx.fillRect((leftX * tileW), (downY * tileH), 2, 2);
+				ctx.fillRect((leftX * tileW), (upY * tileH), 2, 2);
+				ctx.fillRect((rightX * tileW), (downY * tileH), 2, 2);
+				ctx.fillRect((rightX * tileW), (upY * tileH), 2, 2);
+				ctx.filleStyle = 'rgb(255, 0, 0)';
+				ctx.strokeRect((leftX * tileW), (upY * tileH), tileW, tileH);
+  		}
+		}
+		
+		function movehero() {
+			if (left) { //left
+			  gettiles((hero.x - hero.sp), hero.y, hero.w, hero.h);
+				if (wable[leftX][upY] && wable[leftX][downY]) { // are predicted tiles walkable?
+					hero.x = (hero.x - hero.sp); // move player to new cors
+				} else {
+					// list of events
+					if (curmap == 1 && maps[curmap][upY][leftX] == 3) { // door map2 -> map1
+						curmap = 0;
+						hero.x = ((tileW * 8) - (tileW / 2) - hero.w); // spawn at same hight but new pos
+					} else if (curmap == 2 && maps[curmap][upY][leftX] == 6 && doorso[6]) { // door map3 -> map4
+						ts = Math.round(new Date().getTime() / 100);
+						curmap = 3;
+						hero.x = ((tileW * 8) - (tileW / 2) - hero.w);
+					} else {
+						hero.x = ((leftX * tileW) + tileW); // move player next to wall
+					}
+				}
+			}
+			if (right) { //right
+				gettiles((hero.x + hero.sp), hero.y, hero.w, hero.h);
+				if (wable[rightX][upY] && wable[rightX][downY]) {
+					hero.x = (hero.x + hero.sp);
+				} else {
+					if (curmap == 0 && maps[curmap][upY][rightX] == 2 && doorso[2]) { // door map1 -> map2
+						ts = Math.round(new Date().getTime() / 100); // reset counter
+						curmap = 1;
+						hero.x = ((tileW * 0) + (tileW / 2)); // spawn at same hight but new pos
+					} else if (curmap == 3 && maps[curmap][upY][rightX] == 7) { // door map4 -> map3
+						curmap = 2;
+						hero.x = ((tileW * 0) + (tileW / 2));
+					} else {
+						hero.x = (((leftX * tileW) + tileW) - hero.w);
+					}
+				}
+			}
+			if (up) { //up
+			  gettiles(hero.x, (hero.y - hero.sp), hero.w, hero.h);
+				if (wable[leftX][upY] && wable[rightX][upY]) {
+					hero.y = (hero.y - hero.sp);
+				} else {
+					if (curmap == 1 && maps[curmap][upY][rightX] == 4 && doorso[4]) { // door map2 -> map3
+						ts = Math.round(new Date().getTime() / 100); // reset counter
+						curmap = 2;
+						hero.y = ((5 * tileH) + (( - hero.h) / 4));
+					} else {
+						hero.y = ((upY * tileH) + tileH);
+					}
+				}
+			}
+			if (down) { //down
+				gettiles(hero.x, (hero.y + hero.sp), hero.w, hero.h);
+				if (wable[rightX][downY] && wable[leftX][downY]) {
+					hero.y = (hero.y + hero.sp);
+				} else {
+					if (curmap == 2 && maps[curmap][upY][rightX] == 5) { // door map3 -> map2
+						ts = Math.round(new Date().getTime() / 100); // reset counter
+						curmap = 1;
+						hero.y = ((tileH * 0) + (tileH / 2));
+					} else {
+						hero.y = (((upY * tileH) + tileH) - hero.h);
+					}
+				}
+			}
+			// edit the cordinates for future redrawning
+		}
+
+		function placeenemies() {
+			a = enemiest[curmap].length;
+			for (i = 0; i < a; ++i) {
+				if (enemiest[curmap][i][0] > 0) {
+					size = enemiest[curmap][i][6];
+					ctx.fillStyle = 'rgba(0, 255, 0, '+enemiest[curmap][i][4]+')';
+					ctx.fillRect(enemiest[curmap][i][1], enemiest[curmap][i][2], size, size);
+				}
+			}
+		}
+		
+		function moveenemies() {
+			a = enemiest[curmap].length;
+			var sp, wh;
+			for (i = 0; i < a; ++i) {
+				if (enemiest[curmap][i][0] > 0) {
+					x = enemiest[curmap][i][1];
+					y = enemiest[curmap][i][2];
+					sp = enemiest[curmap][i][5];
+					wh = enemiest[curmap][i][6];
+					if (enemiest[curmap][i][8] == 1) { // enemy is smart
+							// smart enemies should always have positive speed
+							
+							var ways = '';
+							var cangoR = false;
+							var cangoL = false;
+							var cangoU = false;
+							var cangoD = false;
+							var curdir = enemiest[curmap][i][3];
+							// 1 = up, 2 = right, 3 = down, 4 = left
+							if (curdir == 1) {
+								var curdira = 'u';
+							}
+							if (curdir == 2) {
+								var curdira = 'r';
+							}
+							if (curdir == 3) {
+								var curdira = 'd';
+							}
+							if (curdir == 4) {
+								var curdira = 'l';
+							}
+							if (curdir == 0) {
+								var curdira = '';
+							}
+							
+							gettiles((x + 8), y, wh, wh);
+							if (wable[rightX][downY] && wable[rightX][upY]) { // he could go right
+								ways += 'r';
+								cangoR = true;
+							}
+							gettiles((x - 8), y, wh, wh);
+							if (wable[leftX][downY] && wable[leftX][upY]) {
+								ways += 'l';
+								cangoL = true;
+							}
+							gettiles(x, (y - 8), wh, wh);
+							if (wable[leftX][upY] && wable[rightX][upY]) {
+								ways += 'u';
+								cangoU = true;
+							}
+							gettiles(x, (y + 8), wh, wh);
+							if (wable[leftX][downY] && wable[rightX][downY]) {
+								ways += 'd';
+								cangoD = true;
+							}
+							
+							if ((curdir == 1 && cangoU) || (curdir == 2 && cangoR) || (curdir == 3 && cangoD) || (curdir == 4 && cangoL)) { // can continue own way
+								if (ways.slice().length == 2) {
+									ways += curdira.repeat(8); // 80% to choose own way
+								} else if (ways.slice().length == 3) {
+									ways += curdira.repeat(17); // 80% to choose own way
+								} else if (ways.slice().length == 4) {
+									ways += curdira.repeat(26); // 80% to choose own way
+								}
+								// 0, 1 and 3 for 50%. 3, 7 and 11 for 80%. 8, 17 and 26 for 90%.
+							}
+							b = rand(1, ways.slice().length) - 1;
+							var goway = ways[b]; // pick random destination from string
+							//console.log(goway+' '+b+' '+ways);
+							
+							if (goway == 'u') {
+								enemiest[curmap][i][3] = 1; // set new way for future chance calculation
+								enemiest[curmap][i][2] -= sp; // and finally.., make him move
+							}
+							if (goway == 'r') {
+								enemiest[curmap][i][3] = 2;
+								enemiest[curmap][i][1] += sp;
+							}
+							if (goway == 'd') {
+								enemiest[curmap][i][3] = 3;
+								enemiest[curmap][i][2] += sp;
+							}
+							if (goway == 'l') {
+								enemiest[curmap][i][3] = 4;
+								enemiest[curmap][i][1] -= sp;
+							}
+
+					} else {
+						if (enemiest[curmap][i][3] == 1) { // x
+							gettiles((x + sp), y, wh, wh);
+							if (wable[rightX][downY] && wable[leftX][downY] && wable[rightX][upY] && wable[leftX][upY]) {
+								enemiest[curmap][i][1] += sp;
+							} else {
+								enemiest[curmap][i][1] -= sp;
+								enemiest[curmap][i][5] -= (2 * sp);
+							}
+						}
+						if (enemiest[curmap][i][3] == 2) { // y
+							gettiles(x, (y + sp), wh, wh);
+							if (wable[rightX][downY] && wable[leftX][downY] && wable[rightX][upY] && wable[leftX][upY]) {
+								enemiest[curmap][i][2] += sp;
+							} else {
+								enemiest[curmap][i][2] -= sp;
+								enemiest[curmap][i][5] -= (2 * sp);
+							}
+						}
+						if (enemiest[curmap][i][3] == 3) { // s
+							// speed should always be positive
+							var onlydooneway = false;
+							var cango = '';
+							
+							if (((hero.x + hero.w) - (x+wh)) > wh && !onlydooneway) { // hero is on the right and enemy hasn't moved yet
+							//if (((hero.x + hero.w) - (x+wh)) > (hero.w/2) && !onlydooneway) { // hero is on the right and enemy hasn't moved yet
+								gettiles((x + sp), y, wh, wh);
+								if (wable[rightX][downY] && wable[rightX][upY]) { // he can walk to hero
+									enemiest[curmap][i][1] += sp;
+									onlydooneway = true;
+								} else {
+									/*gettiles(x, (y - sp), wh, wh);
+									if (wable[leftX][upY] && wable[rightX][upY]) { // he could go up
+										cango += 'u';
+									}
+									gettiles(x, (y - sp), wh, wh);
+									if (wable[leftX][downY] && wable[rightX][downY]) { // he could go down
+										cango += 'd';
+									}
+									if (cango == '') { // can't go to hero, nor can go up and down -> stuck, go back
+										enemiest[curmap][i][1] -= sp;
+										onlydooneway = true;
+									} else {
+										var goway = cango[rand(0, (cango.slice().length - 1))];
+										if (goway == 'u') {
+											enemiest[curmap][i][2] -= sp;
+											onlydooneway = true;
+										}
+										if (goway == 'd') {
+											enemiest[curmap][i][2] += sp;
+											onlydooneway = true;
+										}
+									}*/
+								}
+							}
+							
+							if ((x - hero.x) > wh && !onlydooneway) { // hero is on the left
+							//if ((x - hero.x) > (hero.w/2) && !onlydooneway) { // hero is on the left
+								gettiles((x - sp), y, wh, wh);
+								if (wable[leftX][downY] && wable[leftX][upY]) { // he can walk to hero
+									enemiest[curmap][i][1] -= sp;
+									onlydooneway = true;
+								} else {
+									/*gettiles(x, (y - sp), wh, wh);
+									if (wable[leftX][upY] && wable[rightX][upY]) { // he could go up
+										cango += 'u';
+									}
+									gettiles(x, (y - sp), wh, wh);
+									if (wable[leftX][downY] && wable[rightX][downY]) { // he could go down
+										cango += 'd';
+									}
+									if (cango == '') { // can't go to hero, nor can go up and down -> stuck, go back
+										enemiest[curmap][i][1] += sp;
+										onlydooneway = true;
+									} else {
+										var goway = cango[rand(0, (cango.slice().length - 1))];
+										if (goway == 'u') {
+											enemiest[curmap][i][2] -= sp;
+											onlydooneway = true;
+										}
+										if (goway == 'd') {
+											enemiest[curmap][i][2] += sp;
+											onlydooneway = true;
+										}
+									}*/
+								}
+							}
+							
+							if ((y - hero.y) > wh && !onlydooneway) { // hero is above
+							//if ((y - hero.y) > (hero.h/2) && !onlydooneway) { // hero is above
+								gettiles(x, (y - sp), wh, wh);
+								if (wable[leftX][upY] && wable[rightX][upY]) { // he can walk to hero
+									enemiest[curmap][i][2] -= sp;
+									onlydooneway = true;
+								} else {
+									/*gettiles((x - sp), y, wh, wh);
+									if (wable[leftX][upY] && wable[leftX][downY]) { // he could go left
+										cango += 'l';
+									}
+									gettiles((x + sp), y, wh, wh);
+									if (wable[rightX][downY] && wable[rightX][upY]) { // he could go right
+										cango += 'r';
+									}
+									if (cango == '') { // can't go to hero, nor can go left and right -> stuck, go back
+										enemiest[curmap][i][2] += sp;
+										onlydooneway = true;
+									} else {
+										var goway = cango[rand(0, (cango.slice().length - 1))];
+										if (goway == 'l') {
+											enemiest[curmap][i][1] -= sp;
+											onlydooneway = true;
+										}
+										if (goway == 'r') {
+											enemiest[curmap][i][1] += sp;
+											onlydooneway = true;
+										}
+									}*/
+								}
+							}
+							
+							if ((hero.y - (y-wh)) > wh && !onlydooneway) { // hero is down
+							//if ((hero.y - (y-wh)) > (hero.h/2) && !onlydooneway) { // hero is down
+								gettiles(x, (y + sp), wh, wh);
+								if (wable[leftX][downY] && wable[rightX][downY]) { // he can walk to hero
+									enemiest[curmap][i][2] += sp;
+									onlydooneway = true;
+								} else {
+									/*gettiles((x - sp), y, wh, wh);
+									if (wable[leftX][upY] && wable[leftX][downY]) { // he could go left
+										cango += 'l';
+									}
+									gettiles((x + sp), y, wh, wh);
+									if (wable[rightX][downY] && wable[rightX][upY]) { // he could go right
+										cango += 'r';
+									}
+									if (cango == '') { // can't go to hero, nor can go left and right -> stuck, go back
+										enemiest[curmap][i][2] -= sp;
+										onlydooneway = true;
+									} else {
+										var goway = cango[rand(0, (cango.slice().length - 1))];
+										if (goway == 'l') {
+											enemiest[curmap][i][1] -= sp;
+											onlydooneway = true;
+										}
+										if (goway == 'r') {
+											enemiest[curmap][i][1] += sp;
+											onlydooneway = true;
+										}
+									}*/
+								}
+							}
+							
+							//if (!onlydooneway) { // no movement made, choose random dir except away from player
+							
+						}
+					}
+					
+					var xdist = (enemiest[curmap][i][1] + (enemiest[curmap][i][6] / 2)) - (hero.x + (hero.w / 2));
+					var ydist = (enemiest[curmap][i][2] + (enemiest[curmap][i][6] / 2)) - (hero.y + (hero.h / 2));
+					if ((Math.sqrt(xdist*xdist+ydist*ydist) < (enemiest[curmap][i][6] / 2) + (hero.w / 2)) /*|| (enemiest[curmap][i][3] == 3 && !onlydooneway)*/) {
+						hero.x = ((2 * tileW) + ((tileW - hero.w) / 2)); // start cors
+						hero.y = ((1 * tileH) + ((tileH - hero.h) / 2));
+						gameover = true;
+						shooting = false;
+						playing = false;
+					}
+				}
+			}
+		}
+		
+		function rand(min, max) {
+			return (Math.floor(((max - min) + 1) * Math.random()) + min);
+		}
+		String.prototype.repeat = function (num) {
+ 	   return (new Array(num + 1).join(this));
+		}
+
+		
+		function drawbullet() {
+			ctx.fillStyle = 'rgba(0, 0, 255, 1)';
+			ctx.fillRect(shootx, shooty, 2, 2);
+			if (shootdir == 'l') {
+				gettiles((shootx - 8), shooty, 2, 2);
+				if (wable[rightX][downY] && wable[leftX][downY] && wable[rightX][upY] && wable[leftX][upY]) {
+					shootx -= 10;
+				} else {
+					shooting = false;
+				}
+			}
+			if (shootdir == 'r') {
+				gettiles((shootx + 8), shooty, 2, 2);
+				if (wable[rightX][downY] && wable[leftX][downY] && wable[rightX][upY] && wable[leftX][upY]) {
+					shootx += 10;
+				} else {
+					shooting = false;
+				}
+			}
+			if (shootdir == 'u') {
+				gettiles(shootx, (shooty - 8), 2, 2);
+				if (wable[rightX][downY] && wable[leftX][downY] && wable[rightX][upY] && wable[leftX][upY]) {
+					shooty -= 10;
+				} else {
+					shooting = false;
+				}
+			}
+			if (shootdir == 'd') {
+				gettiles(shootx, (shooty + 8), 2, 2);
+				if (wable[rightX][downY] && wable[leftX][downY] && wable[rightX][upY] && wable[leftX][upY]) {
+					shooty += 10;
+				} else {
+					shooting = false;
+				}
+			}
+			a = enemiest[curmap].length;
+			for (i = 0; i < a; ++i) {
+				if (enemiest[curmap][i][0] > 0) {
+					var xdist = (enemiest[curmap][i][1] + (enemiest[curmap][i][6] / 2)) - (shootx + 2 / 2);
+					var ydist = (enemiest[curmap][i][2] + (enemiest[curmap][i][6] / 2)) - (shooty + 2 / 2);
+					if (Math.sqrt(xdist*xdist+ydist*ydist) < (enemiest[curmap][i][6] / 2) + (2 / 2)) {
+						shooting = false;
+						enemiest[curmap][i][0] -= 1;
+						enemiest[curmap][i][4] -= (1 / enemiest[curmap][i][7]);
+						if (enemiest[curmap][i][0] == 0) {
+							enemies[curmap] -= 1;
+							ts2 = (Math.round(new Date().getTime() / 100) - ts);
+							if (curmap == 0) {
+								tempscore = 100 - ts2;
+								if (tempscore < 0) {
+									tempscore = 0;
+								}
+								score += (tempscore * 1.5 / 10 + 4);
+							}
+							if (curmap == 1) {
+								tempscore = 150 - ts2;
+								if (tempscore < 0) {
+									tempscore = 0;
+								}
+								score += (tempscore * 1.75 / 10 + 6);
+							}
+							if (curmap == 2) {
+								tempscore = 250 - ts2;
+								if (tempscore < 0) {
+									tempscore = 0;
+								}
+								score += (tempscore * 2 / 10 + 8);
+							}
+							if (curmap == 3) {
+								tempscore = 400 - ts2;
+								if (tempscore < 0) {
+									tempscore = 0;
+								}
+								score += (tempscore * 4 / 10 + 30);
+								gameend = true;
+							}
+						} else { // enemy is still alive
+							if (enemiest[curmap][i][3] == 1 || enemiest[curmap][i][3] == 2) {
+								enemiest[curmap][i][8] = 1;
+								enemiest[curmap][i][3] = 0;
+								if (enemiest[curmap][i][5] < 0) {
+									enemiest[curmap][i][5] -= 2 * enemiest[curmap][i][5];
+								}
+							}
+							// make him smart/alert
+						}
+					}
+				}
+			}
+		}
+		
+		function restart() {
+			hero.x = ((2 * tileW) + ((tileW - hero.w) / 2)); // start cors
+			hero.y = ((1 * tileH) + ((tileH - hero.h) / 2));
+			curmap = 0;
+			doorso = oridoorso.slice();
+			doorsa = oridoorsa.slice();
+			enemies = orienemies.slice();
+			a = enemies.length;
+			for (i = 0; i < a; ++i) {
+				enemiest[i] = [];
+				for (j = 0; j < enemies[i]; ++j) {
+					enemiest[i][j] = orienemiest[i][j].slice();
+				}
+			}
+			walkable = oriwalkable.slice();
+			up2 = down2 = left2 = false;
+			right2 = true;
+			score = 0;
+			ts = Math.round(new Date().getTime() / 100);
+			//ctx.clearRect(0, 0, gameW, gameH);
+			//ctx.fillStyle = 'rgb(0, 0, 0)';
+			//ctx.fillText(oridoorsa[2] +' '+doorsa[3], 150 , 150);
+			gameover = false;
+			gameend = false;
+			playing = true;
+			gameloop();
+		}
+		
+		function gameloop() {
+			ctx.clearRect(0, 0, gameW, gameH); // starting with white gamefield again
+			//ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+			//ctx.fillRect(0, 0, gameW, gameH);
+			if (gameover) {
+				ctx.textAlign = "center";
+				ctx.fillStyle = 'rgb(0, 0, 0)';
+				ctx.fillText('Game over!', (gameW / 2), (gameH / 3));
+				ctx.fillText('Points: '+Math.round(score), (gameW / 2), (gameH / 2));
+				ctx.fillText('Press space to restart', (gameW / 2), (gameH / 3 * 2));
+			} else if (gameend) {
+				playing = false;
+				ctx.textAlign = "center";
+				ctx.fillStyle = 'rgb(0, 0, 0)';
+				ctx.fillText('Congratulations!', (gameW / 2), (gameH / 3));
+				ctx.fillText('Points: ', ((gameW / 2) - 15), (gameH / 2));
+				ctx.fillStyle = 'rgb(255, 0, 0)';
+				ctx.fillText(Math.round(score), ((gameW / 2) + 25), (gameH / 2));
+				ctx.fillStyle = 'rgb(0, 0, 0)';
+				ctx.fillText('Press space to restart', (gameW / 2), (gameH / 3 * 2));
+			} else if (playing) {
+				buildmap();
+				placeenemies();
+				moveenemies();
+				movehero(); // adjust his x and y based on keys active
+				//debuggettiles();
+				drawhero();
+				if (shooting) {
+					drawbullet();
+				}
+				ctx.textAlign = "left";
+				ctx.fillStyle = 'rgb(255, 255, 255)';
+				ctx.fillText('Points: '+Math.round(score), 5, (gameH - 5));
+				gloop = setTimeout(gameloop, (1000 / 20));
+			} else {
+				ctx.textAlign = "center";
+				ctx.fillStyle = 'rgb(0, 0, 0)';
+				ctx.fillText('Use arrow keys to move', (gameW / 2), (gameH / 6));
+				ctx.fillText('and space to shoot', (gameW / 2), ((gameH / 6) + 17));
+				ctx.fillText('Press space to continue', (gameW / 2), (gameH / 3 * 2));
+			}
+		}
+		
+		ctx.font = "bold 12px sans-serif";
+		gameloop();
+		
+	}
+  </script>
+  
+</body>
+</html>
